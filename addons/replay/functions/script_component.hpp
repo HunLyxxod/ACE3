@@ -1,0 +1,1 @@
+#include "\z\ace\addons\replay\script_component.hpp"
