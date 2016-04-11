@@ -7,11 +7,12 @@ class CfgPatches {
         requiredVersion = REQUIRED_VERSION;
         requiredAddons[] = {"ace_interact_menu"};
         author[] = {"joko // Jonas", "Emperias", "Zigomarvin"};
-        authorUrl = "https://github.com/commy2/";
+        authorUrl = "https://github.com/jokoho48";
         VERSION_CONFIG;
     };
 };
 
+#include "ACE_Settings.hpp"
 #include "CfgMovesBasic.hpp"
 #include "CfgEventHandlers.hpp"
 #include "CfgVehicles.hpp"
