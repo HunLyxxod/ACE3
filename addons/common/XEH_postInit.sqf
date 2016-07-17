@@ -64,6 +64,7 @@
 ["blockSprint", false, []] call FUNC(statusEffect_addType);
 ["setCaptive", true, [QEGVAR(captives,Handcuffed), QEGVAR(captives,Surrendered), QEGVAR(medical,unconscious)]] call FUNC(statusEffect_addType);
 ["blockDamage", false, ["fixCollision"]] call FUNC(statusEffect_addType);
+["blockEngine", false, ["ACE_Refuel"]] call FUNC(statusEffect_addType);
 
 ["forceWalk", {
     params ["_object", "_set"];
@@ -89,6 +90,11 @@
         TRACE_2("blockDamage EH (using allowDamage)",_object,_set);
        _object allowDamage (_set == 0);
     };
+}] call FUNC(addEventHandler);
+["blockEngine", {
+    params ["_vehicle", "_set"];
+    _vehicle setVariable [QGVAR(blockEngine), _set > 0, true];
+    _vehicle engineOn false;
 }] call FUNC(addEventHandler);
 
 //Add a fix for BIS's zeus remoteControl module not reseting variables on DC when RC a unit
@@ -133,6 +139,7 @@ if (isServer) then {
 ["fixFloating", FUNC(fixFloating)] call FUNC(addEventhandler);
 ["fixPosition", FUNC(fixPosition)] call FUNC(addEventhandler);
 
+["loadPersonEvent", FUNC(loadPersonLocal)] call FUNC(addEventhandler);
 ["unloadPersonEvent", FUNC(unloadPersonLocal)] call FUNC(addEventhandler);
 
 ["lockVehicle", {
@@ -146,6 +153,7 @@ if (isServer) then {
 
 ["setDir", {(_this select 0) setDir (_this select 1)}] call FUNC(addEventhandler);
 ["setFuel", {(_this select 0) setFuel (_this select 1)}] call FUNC(addEventhandler);
+["engineOn", {(_this select 0) engineOn (_this select 1)}] call FUNC(addEventhandler);
 ["setSpeaker", {(_this select 0) setSpeaker (_this select 1)}] call FUNC(addEventhandler);
 ["selectLeader", {(_this select 0) selectLeader (_this select 1)}] call FUNC(addEventHandler);
 ["setVelocity", {(_this select 0) setVelocity (_this select 1)}] call FUNC(addEventHandler);
@@ -325,7 +333,8 @@ enableCamShake true;
 GVAR(OldPlayerVehicle) = vehicle objNull;
 GVAR(OldPlayerTurret) = [objNull] call FUNC(getTurretIndex);
 GVAR(OldPlayerWeapon) = currentWeapon objNull;
-GVAR(OldPlayerInventory) = [objNull] call FUNC(getAllGear);
+GVAR(OldPlayerInventory) = [];
+GVAR(OldPlayerInventoryNoAmmo) = [];
 GVAR(OldPlayerVisionMode) = currentVisionMode objNull;
 GVAR(OldCameraView) = "";
 GVAR(OldVisibleMap) = false;
@@ -373,11 +382,36 @@ GVAR(OldIsCamera) = false;
     };
 
     // "playerInventoryChanged" event
-    _data = [ACE_player] call FUNC(getAllGear);
+    _data = getUnitLoadout ACE_player;
     if !(_data isEqualTo GVAR(OldPlayerInventory)) then {
         // Raise ACE event locally
         GVAR(OldPlayerInventory) = _data;
-        ["playerInventoryChanged", [ACE_player, _data]] call FUNC(localEvent);
+
+        // we don't want to trigger this just because your ammo counter decreased.
+        _data = + GVAR(OldPlayerInventory);
+
+        private _weaponInfo = _data param [0, []];
+        if !(_weaponInfo isEqualTo []) then {
+            _weaponInfo set [4, primaryWeaponMagazine ACE_player];
+            _weaponInfo deleteAt 5;
+        };
+
+        _weaponInfo = _data param [1, []];
+        if !(_weaponInfo isEqualTo []) then {
+            _weaponInfo set [4, secondaryWeaponMagazine ACE_player];
+            _weaponInfo deleteAt 5;
+        };
+
+        _weaponInfo = _data param [2, []];
+        if !(_weaponInfo isEqualTo []) then {
+            _weaponInfo set [4, handgunMagazine ACE_player];
+            _weaponInfo deleteAt 5;
+        };
+
+        if !(_data isEqualTo GVAR(OldPlayerInventoryNoAmmo)) then {
+            GVAR(OldPlayerInventoryNoAmmo) = _data;
+            ["playerInventoryChanged", [ACE_player, [ACE_player, false] call FUNC(getAllGear)]] call FUNC(localEvent);
+        };
     };
 
     // "playerVisionModeChanged" event
